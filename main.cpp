@@ -14,6 +14,8 @@
 
 using namespace std;
 
+const int NUMB_MEMORY_BLOCK = 10;
+
 #include "utils.h"
 
 
@@ -49,11 +51,13 @@ int main(){
     ofstream join_rel_file(join_filename, ofstream::out | ofstream::app);
 
     // number of blocks available (In memory) to merge the sorted blocks of each relation
-    const int N_BLOCK_PER_REL = floor( (NUMB_MEMORY_BLOCK-1) / 2 );
+    float nbr_block_p_rel = (float)(NUMB_MEMORY_BLOCK-1) / (float) 2;
+    const int N_BLOCK_PER_REL = floor( nbr_block_p_rel );
 
     // check if the number of runs is greater than M/2 for eahc of the relations
     if (ptr_tmp_files[0].size() > N_BLOCK_PER_REL || ptr_tmp_files[1].size() > N_BLOCK_PER_REL){
         cout << "Cannot have more than M-1 blocks from relations R1 and R2 in main memory for merge-join operation!";
+        cout << "Number of memory blocks available doest allow to sort such huge relation";
         exit(1);
     }
 

@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 
 
-const int NUMB_MEMORY_BLOCK = 22;
 vector< vector<string> > ptr_tmp_files;
 
 int which_relation = 0; // 0 if relation is Emp and 1 if relation is Dept
