@@ -13,7 +13,10 @@
 #include <sys/stat.h>
 
 
-vector<string> ptr_tmp_files;
+const int NUMB_MEMORY_BLOCK = 22;
+vector< vector<string> > ptr_tmp_files;
+
+int which_relation = 0; // 0 if relation is Emp and 1 if relation is Dept
 
 int sort_col = 0;
 
@@ -65,8 +68,15 @@ bool sortcol( const vector<string>& v1, const vector<string>& v2) {
     return stoi(v1[sort_col]) < stoi(v2[sort_col]); 
 }
 
-// get sets of M blocks and sort them according to the specified attribute (column) 
+// get set of M blocks and sort them accorking to the specified attribute (column) 
 vector <vector <string> > sort_blocks(vector<Block> blocks, int sort_column){
+    //ofstream sorted_blocks_file;
+    //sorted_blocks_file.open ("sorted_blocks.txt");
+
+    /*
+    string sorted_file = "sorted_blocks.txt";
+    ofstream sorted_blocks_file(sorted_file, ofstream::out | ofstream::app);
+    */
 
     vector <vector <string> > array_of_tuples;
     for (auto block : blocks){
@@ -96,7 +106,7 @@ void ReadAndSortRelation(string filename, int col)
 {
     ifstream data(filename);
 
-    //vector<string> tmp_filenames;
+    vector<string> tmp_filenames;
 
     sort_col = col;
 
@@ -123,11 +133,11 @@ void ReadAndSortRelation(string filename, int col)
     int count = 0;
     while (getline(data, line))
     {
-        
+
+        Block block;
+        //block.add((int) &line, line);
+        block.add(line);
         if (vectMblocks.size() < NUMB_MEMORY_BLOCK){
-            Block block;
-            //block.add((int) &line, line);
-            block.add(line);
             vectMblocks.push_back(block);
             block.clear(); // free memory
         }
@@ -146,21 +156,14 @@ void ReadAndSortRelation(string filename, int col)
             }
 
             sorted_blocks_file.close();
-            ptr_tmp_files.push_back(sorted_filename);
+            tmp_filenames.push_back(sorted_filename);
+            //ptr_tmp_files[which_relation].push_back(sorted_filename);
 
             count++;
 
             //empty vectMblocks for next run
             while(vectMblocks.size() > 0){
                 vectMblocks.pop_back();
-            }
-
-            if (!data.eof()){
-                Block block;
-                //block.add((int) &line, line);
-                block.add(line);
-                vectMblocks.push_back(block);
-                block.clear(); // free memory
             }
 
         }
@@ -182,7 +185,8 @@ void ReadAndSortRelation(string filename, int col)
         }
 
         sorted_blocks_file.close();
-        ptr_tmp_files.push_back(sorted_filename);
+        tmp_filenames.push_back(sorted_filename);
+        //ptr_tmp_files[which_relation].push_back(sorted_filename);
 
         //empty vectMblocks for next run
         while(vectMblocks.size() > 0){
@@ -190,10 +194,30 @@ void ReadAndSortRelation(string filename, int col)
         }
     }
 
-    //ptr_tmp_files.push_back(tmp_filenames);
+    ptr_tmp_files.push_back(tmp_filenames);
     //return parseCSV;
 }
 
+
+vector<vector<string>> left_join(vector<vector<string>> tuples_rel1, int attr_rel1, vector<vector<string>> tuples_rel2, int attr_rel2){
+
+    vector<vector<string>> joined_relation;
+    
+    //for (vector<string> tuple_r1: tuples_rel1){
+    for (auto tuple_r1: tuples_rel1){
+        vector<string> tuple1 = tuple_r1;
+        //for (vector<string> tuple_r2: tuples_rel2){
+        for (auto tuple_r2: tuples_rel2){
+            //cout << "attr rel1: " << stoi(tuple_r1[attr_rel1]) << "\n"  << "attr rel2: " << stoi(tuple_r2[attr_rel2]) << "\n\n"; //***************
+            if (stoi(tuple_r1[attr_rel1]) == stoi(tuple_r2[attr_rel2])){
+                tuple1.insert( tuple1.end(), tuple_r2.begin(), tuple_r2.end() );
+                joined_relation.push_back(tuple1);
+            }
+        }
+    }
+    
+    return joined_relation;
+}
 
 // Get the line number "num" in file "fname"
 string GetLine(string fname, unsigned int num){
@@ -229,137 +253,3 @@ vector<string> StringToVect(string str_tuple)
 
     return row_parse;
 }
-
-
-// given the temporarily for filenames, merge M-1 of them in a sorted way
-void merge(vector<string> vect_file_names, string final_filename){
-    vector<string> files_name = vect_file_names;
-    int pass = 0;
-    bool is_final = false; // used to determine when it is the last pass and stop the iterative merging operation
-
-    while (files_name.size() > 0)
-    {
-        // Number of runs for the current pass
-        float nb_runs = (float)files_name.size()/ (float) (NUMB_MEMORY_BLOCK - 1);
-        int nbr_runs = ceil( nb_runs );
-        
-        nbr_runs = max(nbr_runs, 1);
-        vector<string> new_files_name;
-
-        // check if last pass then use the final file name instead of tmp names
-        if (files_name.size() <= NUMB_MEMORY_BLOCK - 1){
-            is_final = true;
-        }
-        string sorted_filename = final_filename;
-
-        for (int i = 0;  i <  nbr_runs; i++){
-            vector<string> current_run_filenames;
-            // current files to merge
-            // iterate through all the previous run sorted file and read them iteratively M-1 blocks a the time
-            for (int ii=i*(NUMB_MEMORY_BLOCK - 1); ii < (i+1)*(NUMB_MEMORY_BLOCK - 1); ii++){
-                if (ii < files_name.size()){
-                    current_run_filenames.push_back(files_name[ii]);
-                }
-            }
-
-            // Open output file to write the results of the merge for the current pass
-            if (files_name.size() > NUMB_MEMORY_BLOCK - 1){
-                sorted_filename = "tmp/sorted_pass_" + to_string(pass) + "_run_" + to_string(i) + ".txt";
-            }
-            
-            //string sorted_filename = "tmp/sorted_pass_" + to_string(pass) + "_run_" + to_string(i) + ".txt";
-            ofstream merge_sorted_file(sorted_filename, ofstream::out | ofstream::app);
-            new_files_name.push_back(sorted_filename);
-
-
-            // Keep track of position of the read blocks in the runs of each relation.
-            vector<int> read_runs(current_run_filenames.size(), 1); 
-            bool merge_complete = false;
-
-            //while (all_blocks_rel1_read && all_blocks_rel2_read){
-            while (!merge_complete){
-
-                vector<vector<string> > tuples;
-                vector<bool> is_file_empty(current_run_filenames.size(), false);
-                vector<int> non_empty;
-
-                // Loop through all the runs and get the jth block
-                for (unsigned int i = 0; i < current_run_filenames.size(); i++){
-                    string read_tuple = GetLine(current_run_filenames[i], read_runs[i]);
-                    if (read_tuple != ""){
-                        tuples.push_back( StringToVect(read_tuple) );
-                        cout << "tuple read: " + read_tuple + " \n read_runs[" + to_string(i) + "]: " + to_string(read_runs[i]) + "\n";
-
-                        non_empty.push_back(i);
-                    }
-                   else if (read_runs[i] > 1){
-                       is_file_empty[i] = true;
-                   }
-                } 
-                
-                if ( tuples.size() > 0 ){
-                    
-                    // Check the minimum of each the M-1 blocks merged and write it to disk file
-                    for (int i = 0;  i < tuples.size(); i++){
-                        int count = 0; // count # id_rel1 < id_rel2
-                        for (int j = 0; j < tuples.size(); j++){
-                            bool condition1 = stoi(tuples[i][sort_col]) != stoi(tuples[j][sort_col]);
-                            bool condition2 = stoi(tuples[i][sort_col]) < stoi(tuples[j][sort_col]);
-                            if ( condition1 && condition2 ){
-                                count++;
-                            }
-                        }
-
-                        // the id at the current value of i is the minimum and we should call another block of the same run
-                        //if ( (count > 0) && (count == tuples.size() - 1) ){
-                        if ( (count == tuples.size() - 1) || (tuples.size() == 1) ){
-                        //if ( count == tuples.size() - 1 ){
-                            // tuple with smallest Id found, now write it to disk
-                            int c = 1; // to avoid adding "," at the end of the line in file
-                            for (string attribute: tuples[i]){
-                                if (c != tuples[i].size()){
-                                    merge_sorted_file << attribute << ",";
-                                }
-                                else{
-                                    merge_sorted_file << attribute;
-                                }
-                                c++;
-                            }
-                            merge_sorted_file << "\n";
-
-                            read_runs[non_empty[i]]++;
-
-                        }
-                    }
-                }
-                else{
-                    merge_complete = true;
-                }
-                
-                for (unsigned int i = 0; i < current_run_filenames.size(); i++){
-                    if (is_file_empty[i]){
-                        read_runs.erase(read_runs.begin() + i);
-                        current_run_filenames.erase(current_run_filenames.begin() + i);
-                    }
-                }
-
-
-            }
-            
-            merge_sorted_file.close();
-
-        }
-        files_name = new_files_name;
-        if (is_final && files_name.size() <= NUMB_MEMORY_BLOCK - 1){
-            for (auto f: files_name){
-                files_name.pop_back();
-            }
-        }
-        pass++;
-    }
-    
-    
-}
-
-
-
