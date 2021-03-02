@@ -14,7 +14,7 @@
 
 using namespace std;
 
-const int NUMB_MEMORY_BLOCK = 10;
+const int NUMB_MEMORY_BLOCK = 22;
 
 #include "utils.h"
 
